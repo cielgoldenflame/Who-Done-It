@@ -27,9 +27,9 @@
 #>
 
 # location of the logon log
-$loglocation = C:\Logonlog\Logonlog.txt
+$loglocation = "C:\Logonlog"
 
 #   creation of logfile
-New-Item -Path $loglocation -ItemType File -Force
+New-Item -Path $loglocation\Logonlog.txt -ItemType File -Force
 
-Set-ItemProperty 
+New-SmbShare -Name Logroot -Path $loglocation -FullAccess $en \Domain Computers
