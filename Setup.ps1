@@ -27,9 +27,32 @@
 #>
 
 # location of the logon log
-$loglocation = "C:\Logonlog"
+$logroot = "C:\Logroot"
 
 #   creation of logfile
-New-Item -Path $loglocation\Logonlog.txt -ItemType File -Force
+New-Item -Path "$logroot\Logonlog.txt" -ItemType File -Force
 
-New-SmbShare -Name Logroot -Path $loglocation -FullAccess $en \Domain Computers
+# Allow Domain users to edit file
+$path = "$logroot\Logonlog.txt"
+$user = "$env:USERDOMAIN\Domain Users"
+$Rights = "Read, Write"
+$RuleType = "Allow"
+
+$acl = Get-Acl $path
+$perm = $user, $Rights, $RuleType
+$rule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $perm
+$acl.SetAccessRule($rule)
+$acl | Set-Acl -Path $path
+
+#share file location give computer rights to edit it.
+New-SmbShare -Name Logroot -Path $logroot -FullAccess "$env:USERDOMAIN\Domain Users"
+
+# Conatinment of logonscript content
+$logonscript = Get-Content .\logonscript.ps1
+
+# Network Location of logroot
+$netlogroot = "$env:COMPUTERNAME\Logroot"
+
+# Replace the intended string with the network logroot
+$newscript = $logonscript -replace "REPLACEME", $netlogroot
+$newscript | Set-Content .\logonscript.ps1
