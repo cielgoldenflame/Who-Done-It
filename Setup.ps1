@@ -26,10 +26,13 @@
         to be run on domain controller
 #>
 
+# Specification of the working directory
+$scriptdir = Split-Path $Script:MyInvocation.MyCommand.Path
+
 # location of the logon log
 $logroot = "C:\Logroot"
 
-#   creation of logfile
+#  creation of logon log
 New-Item -Path "$logroot\Logonlog.txt" -ItemType File -Force
 
 # Allow Domain users to edit file
@@ -48,7 +51,7 @@ $acl | Set-Acl -Path $path
 New-SmbShare -Name Logroot -Path $logroot -FullAccess "$env:USERDOMAIN\Domain Users"
 
 # Conatinment of logonscript content
-$logonscript = Get-Content .\logonscript.ps1
+$logonscript = Get-Content $scriptdir\logonscript.ps1
 
 # Network Location of logroot
 $netlogroot = "$env:COMPUTERNAME\Logroot"
@@ -56,3 +59,63 @@ $netlogroot = "$env:COMPUTERNAME\Logroot"
 # Replace the intended string with the network logroot
 $newscript = $logonscript -replace "REPLACEME", $netlogroot
 $newscript | Set-Content .\logonscript.ps1
+
+# Creation of the GPO that implements the logon script
+New-GPO -Name Who-Done-It
+
+$gpo = Get-GPO -Name Who-Done-It
+# Getting the guid for later
+$gpoid = $gpo.id.Guid
+# GPO path 
+# $gpopath = $gpo.Path
+
+# Sysvol location for gpo we created
+$netfilepath = "\\$env:USERDNSDOMAIN\SYSVOL\$env:USERDNSDOMAIN\Policies\{$gpoid}\User\Scripts\Logon"
+
+# creation of path above
+New-Item -Path $netfilepath -ItemType Directory -Force
+
+# copy our logonscript to here
+Copy-Item -Path $scriptdir\logonscript.ps1 -Destination $netfilepath
+
+<#
+$domain = Get-ADDomain
+$dn = $domain.DistinguishedName
+
+$key = "HKCU\SOFTWARE\MICROSOFT\Windows\CurrentVersion\Group Policy\Scripts\Logon"
+
+$csv = Get-Content $scriptdir\0.csv
+$0values = $csv -replace 'netfilepath', $netfilepath -replace 'gpopath', "$gpopath" -replace 'gpoid', $gpoid -replace 'dn', $dn
+$0values | Set-Content $scriptdir\0.csv
+
+Import-Csv $scriptdir\0.csv -Delimiter ";" | ForEach-Object { 
+$type = $_.Type
+$name = $_.Name
+$value = $_.Value
+
+Set-GPRegistryValue -Guid $gpoid -Key "$key\0" -Type $type -ValueName $name -Value $value
+}
+
+$csv = Get-Content $scriptdir\0-0.csv
+$00values = $csv -replace 'logscript', $logscript
+$00values | Set-Content $scriptdir\0-0.csv
+
+Import-Csv $scriptdir\0-0.csv -Delimiter ";" | ForEach-Object {
+$type = $_.Type
+$name = $_.Name
+$value = $_.Value
+Set-GPRegistryValue -Guid $gpoid -Key "$key\0\0" -Type $type -ValueName $name -Value $value
+}
+#>
+
+Clear-host
+Write-host "Please Edit the Who-Done-It GPO to contain the logonscript.ps1
+
+Open Group Policy Management & Navigate to Group Policy Objects
+Right Click Who-Done-It GPO, Select edit.
+Then browse to User Configuration\Policies\Windows Settings\Scripts\
+Double-Click Logon, Select the PowerShell Scripts Tab
+Click Add, then Browse. Select logonscript.ps1
+Click Okay Twice, and exit out of the editor" -ForegroundColor Yellow
+Start-Process gpmc.msc
+Pause

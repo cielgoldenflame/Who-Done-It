@@ -1,0 +1,8 @@
+Name;Type;Value
+(Default);String;""
+DisplayName;String;Who-Done-It
+FileSysPath;String;netfilepath
+GPO-ID;String;gpopath
+GPOName;String;{gpoid}
+PSScriptOrder;DWord;2
+SOM-ID;String;dn

@@ -1,0 +1,6 @@
+Name;Type;Value
+(Default);String;""
+ExecTime;QWord;
+IsPowershell;DWord;1
+Parameters;String;""
+Script;String;logscript
