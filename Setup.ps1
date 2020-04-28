@@ -119,3 +119,46 @@ Click Add, then Browse. Select logonscript.ps1
 Click Okay Twice, and exit out of the editor" -ForegroundColor Yellow
 Start-Process gpmc.msc
 Pause
+
+# Begin Process of creating Attributes
+Function New-OID {
+    $Prefix="1.2.840.113556.1.8000.2554" 
+    $GUID=[System.Guid]::NewGuid().ToString() 
+    $Parts=@() 
+    $Parts+=[UInt64]::Parse($guid.SubString(0,4),"AllowHexSpecifier") 
+    $Parts+=[UInt64]::Parse($guid.SubString(4,4),"AllowHexSpecifier") 
+    $Parts+=[UInt64]::Parse($guid.SubString(9,4),"AllowHexSpecifier") 
+    $Parts+=[UInt64]::Parse($guid.SubString(14,4),"AllowHexSpecifier") 
+    $Parts+=[UInt64]::Parse($guid.SubString(19,4),"AllowHexSpecifier") 
+    $Parts+=[UInt64]::Parse($guid.SubString(24,6),"AllowHexSpecifier") 
+    $Parts+=[UInt64]::Parse($guid.SubString(30,6),"AllowHexSpecifier") 
+    $oid=[String]::Format("{0}.{1}.{2}.{3}.{4}.{5}.{6}.{7}",$prefix,$Parts[0],$Parts[1],$Parts[2],$Parts[3],$Parts[4],$Parts[5],$Parts[6]) 
+    $oid 
+}
+
+# What we want our Attribute name to be
+$attributeName
+
+# Where object is stored
+$schemaPath = (Get-ADRootDSE).schemaNamingContext 
+
+# Type of Schema object
+$attributetype = 'attributeSchema'
+
+# Unique ID for the Attribute
+$AttributeID = (New-OID)
+
+# 
+$attributes = @{
+    lDAPDisplayName = $attributeName;
+    attributeId = $AttributeID;
+    oMSyntax = 20;
+    attributeSyntax = "2.5.5.4";
+    isSingleValued = $true;
+    adminDescription = $AdminDescription;
+    searchflags = 1
+}
+  
+New-ADObject -Name $attributeName -Type $attributetype -Path $schemapath -OtherAttributes $attributes 
+$userSchema = get-adobject -SearchBase $schemapath -Filter 'name -eq "user"'
+$userSchema | Set-ADObject -Add @{mayContain = $Name}
