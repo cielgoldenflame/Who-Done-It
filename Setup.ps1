@@ -77,8 +77,6 @@ Import-GPO -BackupId "{93D3A585-770F-4C42-8ECE-2E2688FD1140}" -TargetGuid $gpoid
 # Link our GPO to the domain to affect all users
 New-GPLink -Guid $gpoid -Target $distname -LinkEnabled Yes
 
-# Begin Process of creating Attributes
-
 # Function creates a new identification number for the attributes
 Function New-OID {
     $Prefix="1.2.840.113556.1.8000.2554" 
@@ -95,34 +93,39 @@ Function New-OID {
     $oid 
 }
 
-Import-Csv "$scriptdir\Attributes.csv"
-$class
+# Begin Process of creating Attributes
+Import-Csv "$scriptdir\Attributes.csv" | ForEach-Object {
 
-$Name
+    # Class will be the object it is attached to
+    $_.Class = $class
 
-# What we want our Attribute name to be
-$attributeName
+    # What we want our Attribute name to be
+    $_.AttrName = $attributeName
 
-# Where object is stored
-$schemaPath = (Get-ADRootDSE).schemaNamingContext 
+    # This will be the description
+    $_.AD = $AdminDescription
 
-# Type of Schema object
-$attributetype = 'attributeSchema'
+    # Where object is stored
+    $schemaPath = (Get-ADRootDSE).schemaNamingContext 
 
-# Unique ID for the Attribute
-$AttributeID = (New-OID)
+    # Type of Schema object
+    $attributetype = 'attributeSchema'
 
-# 
-$attributes = @{
-    lDAPDisplayName = $attributeName;
-    attributeId = $AttributeID;
-    oMSyntax = 20;
-    attributeSyntax = "2.5.5.4";
-    isSingleValued = $true;
-    adminDescription = $AdminDescription;
-    searchflags = 1
-}
+    # Unique ID for the Attribute
+    $AttributeID = (New-OID)
+
+    # Additional properties needed for the attributes
+    $attributes = @{
+        lDAPDisplayName = $attributeName;
+        attributeId = $AttributeID;
+        oMSyntax = 20;
+        attributeSyntax = "2.5.5.4";
+        isSingleValued = $true;
+        adminDescription = $AdminDescription;
+        searchflags = 1
+    }
   
-New-ADObject -Name $attributeName -Type $attributetype -Path $schemapath -OtherAttributes $attributes 
-$userSchema = get-adobject -SearchBase $schemapath -Filter "name -eq $class"
-$userSchema | Set-ADObject -Add @{mayContain = $Name}
+    New-ADObject -Name $attributeName -Type $attributetype -Path $schemapath -OtherAttributes $attributes 
+    get-adobject -SearchBase $schemapath -Filter "name -eq $class" | Set-ADObject -Add @{mayContain = $attributeName}
+}
+
