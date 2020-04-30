@@ -63,64 +63,23 @@ $newscript | Set-Content .\logonscript.ps1
 # Creation of the GPO that implements the logon script
 New-GPO -Name Who-Done-It
 
+# Getting the guid for easy idenification
 $gpo = Get-GPO -Name Who-Done-It
-# Getting the guid for later
 $gpoid = $gpo.id.Guid
-# GPO path 
-# $gpopath = $gpo.Path
 
-# Sysvol location for gpo we created
-$netfilepath = "\\$env:USERDNSDOMAIN\SYSVOL\$env:USERDNSDOMAIN\Policies\{$gpoid}\User\Scripts\Logon"
-
-# creation of path above
-New-Item -Path $netfilepath -ItemType Directory -Force
-
-# copy our logonscript to here
-Copy-Item -Path $scriptdir\logonscript.ps1 -Destination $netfilepath
-
-<#
+# get the Domain Name in distinguised name context
 $domain = Get-ADDomain
-$dn = $domain.DistinguishedName
+$distname = $domain.DistinguishedName
 
-$key = "HKCU\SOFTWARE\MICROSOFT\Windows\CurrentVersion\Group Policy\Scripts\Logon"
+# Import the settings from a pre-configured GPO to our new one
+Import-GPO -BackupId "{93D3A585-770F-4C42-8ECE-2E2688FD1140}" -TargetGuid $gpoid -Path "$scriptdir"
 
-$csv = Get-Content $scriptdir\0.csv
-$0values = $csv -replace 'netfilepath', $netfilepath -replace 'gpopath', "$gpopath" -replace 'gpoid', $gpoid -replace 'dn', $dn
-$0values | Set-Content $scriptdir\0.csv
-
-Import-Csv $scriptdir\0.csv -Delimiter ";" | ForEach-Object { 
-$type = $_.Type
-$name = $_.Name
-$value = $_.Value
-
-Set-GPRegistryValue -Guid $gpoid -Key "$key\0" -Type $type -ValueName $name -Value $value
-}
-
-$csv = Get-Content $scriptdir\0-0.csv
-$00values = $csv -replace 'logscript', $logscript
-$00values | Set-Content $scriptdir\0-0.csv
-
-Import-Csv $scriptdir\0-0.csv -Delimiter ";" | ForEach-Object {
-$type = $_.Type
-$name = $_.Name
-$value = $_.Value
-Set-GPRegistryValue -Guid $gpoid -Key "$key\0\0" -Type $type -ValueName $name -Value $value
-}
-#>
-
-Clear-host
-Write-host "Please Edit the Who-Done-It GPO to contain the logonscript.ps1
-
-Open Group Policy Management & Navigate to Group Policy Objects
-Right Click Who-Done-It GPO, Select edit.
-Then browse to User Configuration\Policies\Windows Settings\Scripts\
-Double-Click Logon, Select the PowerShell Scripts Tab
-Click Add, then Browse. Select logonscript.ps1
-Click Okay Twice, and exit out of the editor" -ForegroundColor Yellow
-Start-Process gpmc.msc
-Pause
+# Link our GPO to the domain to affect all users
+New-GPLink -Guid $gpoid -Target $distname -LinkEnabled Yes
 
 # Begin Process of creating Attributes
+
+# Function creates a new identification number for the attributes
 Function New-OID {
     $Prefix="1.2.840.113556.1.8000.2554" 
     $GUID=[System.Guid]::NewGuid().ToString() 
@@ -135,6 +94,11 @@ Function New-OID {
     $oid=[String]::Format("{0}.{1}.{2}.{3}.{4}.{5}.{6}.{7}",$prefix,$Parts[0],$Parts[1],$Parts[2],$Parts[3],$Parts[4],$Parts[5],$Parts[6]) 
     $oid 
 }
+
+Import-Csv "$scriptdir\Attributes.csv"
+$class
+
+$Name
 
 # What we want our Attribute name to be
 $attributeName
@@ -160,5 +124,5 @@ $attributes = @{
 }
   
 New-ADObject -Name $attributeName -Type $attributetype -Path $schemapath -OtherAttributes $attributes 
-$userSchema = get-adobject -SearchBase $schemapath -Filter 'name -eq "user"'
+$userSchema = get-adobject -SearchBase $schemapath -Filter "name -eq $class"
 $userSchema | Set-ADObject -Add @{mayContain = $Name}

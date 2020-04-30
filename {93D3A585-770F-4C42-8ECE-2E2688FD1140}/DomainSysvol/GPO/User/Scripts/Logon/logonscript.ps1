@@ -27,7 +27,7 @@ $date = Get-Date
 $user = "$env:USERDOMAIN\$env:USERNAME"
 
 # Command adds info to text
-Add-Content \\DESKTOP-LDGMO77\Logroot\logonlog.txt -Value "
+Add-Content \\WIN-V6N9QMHKFIF\Logroot\logonlog.txt -Value "
 Time:       $date
 User:       $user
 Computer:   $env:COMPUTERNAME"
